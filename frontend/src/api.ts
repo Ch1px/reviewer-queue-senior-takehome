@@ -17,14 +17,27 @@ export interface ReviewItem {
   assigned_reviewer: string | null;
   notes_count: number;
   summary: string;
+  allowed_actions: ReviewAction[];
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
+async function errorFromResponse(response: Response, fallback: string): Promise<Error> {
+  try {
+    const payload = await response.json();
+    if (typeof payload?.detail === "string") {
+      return new Error(payload.detail);
+    }
+  } catch {
+    // Non-JSON error body; fall back to the generic message.
+  }
+  return new Error(fallback);
+}
+
 export async function fetchReviewItems(): Promise<ReviewItem[]> {
   const response = await fetch(`${API_BASE_URL}/review-items`);
   if (!response.ok) {
-    throw new Error("Could not load review items");
+    throw await errorFromResponse(response, "Could not load review items.");
   }
   const payload = await response.json();
   return payload.items;
@@ -44,7 +57,7 @@ export async function applyReviewAction(
   });
 
   if (!response.ok) {
-    throw new Error("Action failed");
+    throw await errorFromResponse(response, "That action could not be completed.");
   }
 
   const payload = await response.json();
